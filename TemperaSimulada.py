@@ -237,7 +237,7 @@ def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
 if __name__ == "__main__":
     tempo_inicio = time.time()
 
-    # Cada item tem nome, peso ≥ 0 e valor ≥ 0
+    # Cada item tem nome, peso >= 0 e valor >= 0
     random.seed()
     itens = [
         {"nome": f"Item_{i:02d}", "peso": random.randint(3, 25), "valor": random.randint(5, 50)}
@@ -252,8 +252,8 @@ if __name__ == "__main__":
     #      T_t = Tn + (T0 - Tn) * ((n - t) / n)²
     #
     #  T0  (temperatura inicial)
-    #      Alta  (ex: 1000-5000) → aceita muitas pioras no início → mais exploração
-    #      Baixa (ex: 10-50)    → já começa conservador → pode ficar preso cedo
+    #      Alta  (ex: 1000-5000) -> aceita muitas pioras no início → mais exploração
+    #      Baixa (ex: 10-50)    -> já começa conservador → pode ficar preso cedo
     #
     #  Tn  (temperatura final)
     #      Valor baixo próximo de zero (ex: 0.01 a 1.0)
@@ -261,11 +261,11 @@ if __name__ == "__main__":
     #
     #  n_fases  (número de fases — substitui alpha)
     #      Controla a duração total do resfriamento.
-    #      Mais fases → curva mais suave → mais exploração
+    #      Mais fases -> curva mais suave → mais exploração
     #      Valores típicos: 100 a 500 para instâncias de 10-50 itens
     #
     #  iter_por_temp  (iterações por temperatura)
-    #      Mais iterações → melhor amostragem em cada T, mas mais lento
+    #      Mais iterações -> melhor amostragem em cada T, mas mais lento
     #      Valores típicos: 50 a 200 para instâncias de 10-50 itens
 
     melhor_sol, historico = simulated_annealing(
