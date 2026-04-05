@@ -4,14 +4,17 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-MAX_GERACOES = 5000
-NUM_ITENS = 50
+MAX_GERACOES = 1000
+NUM_ITENS = 20
 N = 100
 R = N
 pCROSS = 0.8
 pMUT = 0.05
 ValorFITNESS_OK = float("inf")  # Pode ser ajustado para um valor específico se desejado
 CAPACIDADE = 100
+MAX_ITENS_COMPARACAO_EXATA = 200
+MAX_CUSTO_DP_EXATA = MAX_ITENS_COMPARACAO_EXATA * (CAPACIDADE + 1)
+
 class Estado:
     def __init__(self, solucao):
         self.solucao = solucao
@@ -170,6 +173,8 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
     }
     return sorted_populacao[0], historico
 
+
+##### Funções para comparação com o ótimo global exato via programação dinâmica
 def maximo_global_mochila(itens, capacidade):
     """Resolve a mochila 0/1 exatamente via programação dinâmica e reconstrói a solução ótima."""
     n = len(itens)
@@ -201,6 +206,19 @@ def comparar_ag_com_otimo(melhor_solucao_ag, itens, capacidade):
     melhor_valor_ag = valor_total(melhor_solucao_ag, itens)
     melhor_peso_ag = peso_total(melhor_solucao_ag, itens)
 
+    custo_dp = len(itens) * (capacidade + 1)
+
+    if custo_dp > MAX_CUSTO_DP_EXATA:
+        return {
+            "valor_ag": melhor_valor_ag,
+            "peso_ag": melhor_peso_ag,
+            "comparacao_exata": False,
+            "motivo": (
+                f"Comparacao exata pulada: custo DP={custo_dp} "
+                f"> limite {MAX_CUSTO_DP_EXATA} (MAX_ITENS*CAPACIDADE)"
+            ),
+        }
+
     solucao_otima, valor_otimo, peso_otimo = maximo_global_mochila(itens, capacidade)
     gap_abs = valor_otimo - melhor_valor_ag
     gap_pct = (gap_abs / valor_otimo * 100) if valor_otimo > 0 else 0.0
@@ -208,6 +226,7 @@ def comparar_ag_com_otimo(melhor_solucao_ag, itens, capacidade):
     return {
         "valor_ag": melhor_valor_ag,
         "peso_ag": melhor_peso_ag,
+        "comparacao_exata": True,
         "solucao_otima": solucao_otima,
         "valor_otimo": valor_otimo,
         "peso_otimo": peso_otimo,
@@ -216,7 +235,7 @@ def comparar_ag_com_otimo(melhor_solucao_ag, itens, capacidade):
     }
 
 # Parte de Plotagem
-def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
+def plotar(historico, itens, melhor, capacidade, comparacao=None, tempo_inicio=None):
     """Gera gráficos explicativos do comportamento do AG."""
     geracoes = historico["geracao"]
 
@@ -295,15 +314,26 @@ def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
     # Rodapé
     val_final = valor_total(melhor, itens)
     tempo_decorrido = f"   |   Tempo de execução = {time.time() - tempo_inicio:.2f}s" if tempo_inicio else ""
-    fig.text(0.5, 0.01,
-             f"Melhor valor = {val_final}   |   Peso usado = {peso_usado}/{capacidade}   |   "
-             f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}",
-             ha="center", fontsize=10, color="#333")
+    texto_rodape = (
+        f"Melhor valor = {val_final}   |   Peso usado = {peso_usado}/{capacidade}   |   "
+        f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}"
+    )
+
+    if comparacao is not None:
+        if comparacao.get("comparacao_exata"):
+            texto_rodape += (
+                f"\nOtimo global = {comparacao['valor_otimo']} (peso {comparacao['peso_otimo']})"
+                f"   |   Gap AG = {comparacao['gap_abs']} ({comparacao['gap_pct']:.2f}%)"
+            )
+        else:
+            texto_rodape += f"\n{comparacao.get('motivo', 'Comparacao exata nao realizada')}"
+
+    fig.text(0.5, 0.01, texto_rodape, ha="center", fontsize=10, color="#333")
 
     plt.savefig("resultado_ag_knapsack.png", dpi=150, bbox_inches="tight")
     plt.show()
 
-# Funções para gerar a população inicial
+# Geração da população inicial e execução do AG
 
 def gerar_solucao_aleatoria():
     """Gera uma solução aleatória (vetor binário)"""
@@ -327,8 +357,4 @@ if __name__ == "__main__":
     melhor, historico = AG(C, pCROSS, pMUT, N, R, itens, CAPACIDADE)
     comparacao = comparar_ag_com_otimo(melhor.solucao, itens, CAPACIDADE)
 
-    print(f"Melhor solução AG: {melhor.solucao} com valor {comparacao['valor_ag']} e peso {comparacao['peso_ag']}")
-    print(f"Ótimo global exato: {comparacao['solucao_otima']} com valor {comparacao['valor_otimo']} e peso {comparacao['peso_otimo']}")
-    print(f"Gap AG vs ótimo: {comparacao['gap_abs']} ({comparacao['gap_pct']:.2f}%)")
-
-    plotar(historico, itens, melhor.solucao, CAPACIDADE, tempo_inicio)
+    plotar(historico, itens, melhor.solucao, CAPACIDADE, comparacao, tempo_inicio)
