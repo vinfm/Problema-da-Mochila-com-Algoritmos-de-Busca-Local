@@ -4,14 +4,14 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-MAX_GERACOES = 10000
-NUM_ITENS = 100
+MAX_GERACOES = 5000
+NUM_ITENS = 50
 N = 100
 R = N
 pCROSS = 0.8
 pMUT = 0.05
-ValorFITNESS_OK = 500
-
+ValorFITNESS_OK = float("inf")  # Pode ser ajustado para um valor específico se desejado
+CAPACIDADE = 100
 class Estado:
     def __init__(self, solucao):
         self.solucao = solucao
@@ -21,39 +21,38 @@ def valor_total(sol, itens):
     """Soma os valores dos itens selecionados"""
     return sum(sol[i] * itens[i]["valor"] for i in range(len(itens)))
 
-
 def peso_total(sol, itens):
     """Soma os pesos dos itens selecionados"""
     return sum(sol[i] * itens[i]["peso"] for i in range(len(itens)))
 
-
 def solucao_valida(sol, itens, capacidade):
     """Verifica se o peso total não excede a capacidade"""
     return peso_total(sol, itens) <= capacidade
+
+def conserta_solucao(sol, itens, capacidade):
+    """Conserta uma solução inválida removendo itens aleatórios até ficar válida"""
+    while not solucao_valida(sol, itens, capacidade):
+        i = random.choice([idx for idx, bit in enumerate(sol) if bit == 1])
+        sol[i] = 0
 
 def calcula_fitness(sol, itens, capacidade):
     """Calcula o valor total da solução, penalizando soluções inválidas"""
     if solucao_valida(sol, itens, capacidade):
         return valor_total(sol, itens)
     else:
-        # Penaliza soluções que excedem a capacidade
-        return valor_total(sol, itens)/peso_total(sol, itens)
+        return 0
 
 def selecao_roleta(populacao):
     """Seleciona um indivíduo da população usando seleção por roleta"""
     total_fitness = sum(ind.valor_fitness for ind in populacao)
-    # Se a soma é não positiva, a roleta clássica não é adequada.
-    # Nesse caso, escolhe aleatoriamente um indivíduo válido.
     if total_fitness <= 0:
         return random.choice(populacao)
-
     pick = random.uniform(0, total_fitness)
     current = 0
     for ind in populacao:
         current += ind.valor_fitness
         if current >= pick:
             return ind
-
     # Garantia para casos de arredondamento numérico.
     return populacao[-1]
 
@@ -94,15 +93,25 @@ def selecao_melhores(populacao, R):
 
 def fitness_estagnou(populacao):
     """Verifica se o fitness estagnou nos últimos estagios gerações"""
-    melhores = sorted(populacao, key=lambda ind: ind.valor_fitness, reverse=True)[:N//10]
+    melhores = sorted(populacao, key=lambda ind: ind.valor_fitness, reverse=True)[0:int(N * 0.9)]
     return all(ind.valor_fitness == melhores[0].valor_fitness for ind in melhores)
 
-def diversidade_media(populacao):
+def distancia_media_ao_melhor(populacao):
+    """Mede diversidade como distância de Hamming média até o melhor indivíduo."""
     if not populacao:
         return 0.0
-    total_bits = len(populacao) * len(populacao[0].solucao)
-    bits_ativos = sum(sum(ind.solucao) for ind in populacao)
-    return bits_ativos / total_bits if total_bits > 0 else 0.0
+
+    melhor = max(populacao, key=lambda ind: ind.valor_fitness)
+    n_bits = len(melhor.solucao)
+    if n_bits == 0:
+        return 0.0
+
+    soma_distancias_norm = 0.0
+    for ind in populacao:
+        distancia = sum(1 for a, b in zip(ind.solucao, melhor.solucao) if a != b)
+        soma_distancias_norm += distancia / n_bits
+
+    return soma_distancias_norm / len(populacao)
 
 def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
     # N e R passam a refletir automaticamente o tamanho atual de C, se necessário.
@@ -112,10 +121,12 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
     hist_melhor_val = []
     hist_fitness_medio = []
     hist_pior_val = []
-    hist_diversidade = []
+    hist_distancia_media = []
     hist_geracao = []
 
     for c in C:
+        if not solucao_valida(c.solucao, itens, capacidade):
+            conserta_solucao(c.solucao, itens, capacidade)
         c.valor_fitness = calcula_fitness(c.solucao, itens, capacidade)
 
     geracao = 0
@@ -129,6 +140,8 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
             ind.solucao = mutacao(ind.solucao, pMUT)
 
         for ind in nova_populacao_cruzada:
+            if not solucao_valida(ind.solucao, itens, capacidade):
+                conserta_solucao(ind.solucao, itens, capacidade)
             ind.valor_fitness = calcula_fitness(ind.solucao, itens, capacidade)
 
         C = selecao_melhores(C + nova_populacao_cruzada, R)
@@ -140,7 +153,7 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
         hist_melhor_val.append(melhor_geracao)
         hist_fitness_medio.append(media_geracao)
         hist_pior_val.append(pior_geracao)
-        hist_diversidade.append(diversidade_media(C))
+        hist_distancia_media.append(distancia_media_ao_melhor(C))
         hist_geracao.append(geracao)
 
         geracao += 1
@@ -153,7 +166,7 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
         "melhor_val": hist_melhor_val,
         "fitness_medio": hist_fitness_medio,
         "pior_val": hist_pior_val,
-        "diversidade": hist_diversidade,
+        "distancia_media": hist_distancia_media,
     }
     return sorted_populacao[0], historico
 
@@ -230,13 +243,13 @@ def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
     ax1.grid(True, alpha=0.3)
     ax1.tick_params(labelsize=8)
 
-    # Diversidade média da população
+    # Distância média ao melhor (diversidade por Hamming)
     ax2 = fig.add_subplot(gs[0, 1])
-    ax2.plot(geracoes, historico["diversidade"], color=ROXO, lw=2.0)
-    ax2.fill_between(geracoes, historico["diversidade"], alpha=0.15, color=ROXO)
-    ax2.set_title("Diversidade média da população", fontsize=11)
+    ax2.plot(geracoes, historico["distancia_media"], color=ROXO, lw=2.0)
+    ax2.fill_between(geracoes, historico["distancia_media"], alpha=0.15, color=ROXO)
+    ax2.set_title("Distância média ao melhor (Hamming)", fontsize=11)
     ax2.set_xlabel("Geração", fontsize=9)
-    ax2.set_ylabel("Proporção de bits ativos", fontsize=9)
+    ax2.set_ylabel("Distância normalizada (0 a 1)", fontsize=9)
     ax2.set_ylim(0, 1)
     ax2.grid(True, alpha=0.3)
     ax2.tick_params(labelsize=8)
@@ -310,13 +323,12 @@ if __name__ == "__main__":
         for i in range(NUM_ITENS)
     ]
 
-    capacidade = 100
     C = gerar_populacao_inicial(N)
-    melhor, historico = AG(C, pCROSS, pMUT, N, R, itens, capacidade)
-    comparacao = comparar_ag_com_otimo(melhor.solucao, itens, capacidade)
+    melhor, historico = AG(C, pCROSS, pMUT, N, R, itens, CAPACIDADE)
+    comparacao = comparar_ag_com_otimo(melhor.solucao, itens, CAPACIDADE)
 
     print(f"Melhor solução AG: {melhor.solucao} com valor {comparacao['valor_ag']} e peso {comparacao['peso_ag']}")
     print(f"Ótimo global exato: {comparacao['solucao_otima']} com valor {comparacao['valor_otimo']} e peso {comparacao['peso_otimo']}")
     print(f"Gap AG vs ótimo: {comparacao['gap_abs']} ({comparacao['gap_pct']:.2f}%)")
 
-    plotar(historico, itens, melhor.solucao, capacidade, tempo_inicio)
+    plotar(historico, itens, melhor.solucao, CAPACIDADE, tempo_inicio)
