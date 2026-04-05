@@ -4,15 +4,15 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-MAX_GERACOES = 1000
-NUM_ITENS = 20
+MAX_GERACOES = 3000
+NUM_ITENS = 100
 N = 100
 R = N
 pCROSS = 0.8
 pMUT = 0.05
 ValorFITNESS_OK = float("inf")  # Pode ser ajustado para um valor específico se desejado
-CAPACIDADE = 100
-MAX_ITENS_COMPARACAO_EXATA = 200
+CAPACIDADE = 500
+MAX_ITENS_COMPARACAO_EXATA = 300
 MAX_CUSTO_DP_EXATA = MAX_ITENS_COMPARACAO_EXATA * (CAPACIDADE + 1)
 
 class Estado:
@@ -56,8 +56,6 @@ def selecao_roleta(populacao):
         current += ind.valor_fitness
         if current >= pick:
             return ind
-    # Garantia para casos de arredondamento numérico.
-    return populacao[-1]
 
 def selecao(populacao):
     """Seleciona um indivíduo da população usando torneio"""
@@ -72,15 +70,19 @@ def crossover(pai1, pai2, pCROSS):
         ponto_corte = random.randint(1, len(pai1) - 2)
         filho = pai1[:ponto_corte] + pai2[ponto_corte:]
     else:
-        filho = pai1[:]  # Copia o primeiro pai
+        filho = pai1[:]
     return filho
 
 def crossovers(populacao, pCROSS):
     """Realiza o crossover em toda a população para gerar uma nova população"""
     nova_populacao = []
-    for i in range(len(populacao) - 1):
-        filho_solucao = crossover(populacao[i].solucao, populacao[i + 1].solucao, pCROSS)
-        nova_populacao.append(Estado(filho_solucao))
+    i = 0
+    while i < len(populacao) - 1:
+        filho1_solucao = crossover(populacao[i].solucao, populacao[i + 1].solucao, pCROSS)
+        filho2_solucao = crossover(populacao[i + 1].solucao, populacao[i].solucao, pCROSS)
+        nova_populacao.append(Estado(filho1_solucao))
+        nova_populacao.append(Estado(filho2_solucao))
+        i += 1
     return nova_populacao
 
 def mutacao(solucao, pMUT):
@@ -235,7 +237,7 @@ def comparar_ag_com_otimo(melhor_solucao_ag, itens, capacidade):
     }
 
 # Parte de Plotagem
-def plotar(historico, itens, melhor, capacidade, comparacao=None, tempo_inicio=None):
+def plotar(historico, itens, melhor, capacidade, comparacao=None, tempo_ag=None):
     """Gera gráficos explicativos do comportamento do AG."""
     geracoes = historico["geracao"]
 
@@ -313,7 +315,7 @@ def plotar(historico, itens, melhor, capacidade, comparacao=None, tempo_inicio=N
 
     # Rodapé
     val_final = valor_total(melhor, itens)
-    tempo_decorrido = f"   |   Tempo de execução = {time.time() - tempo_inicio:.2f}s" if tempo_inicio else ""
+    tempo_decorrido = f"   |   Tempo AG = {tempo_ag:.2f}s" if tempo_ag is not None else ""
     texto_rodape = (
         f"Melhor valor = {val_final}   |   Peso usado = {peso_usado}/{capacidade}   |   "
         f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}"
@@ -344,8 +346,6 @@ def gerar_populacao_inicial(N):
     return [Estado(gerar_solucao_aleatoria()) for _ in range(N)]
 
 if __name__ == "__main__":
-    tempo_inicio = time.time()
-
     # Cada item tem nome, peso >= 0 e valor >= 0
     random.seed()
     itens = [
@@ -354,7 +354,9 @@ if __name__ == "__main__":
     ]
 
     C = gerar_populacao_inicial(N)
+    tempo_ag_inicio = time.time()
     melhor, historico = AG(C, pCROSS, pMUT, N, R, itens, CAPACIDADE)
+    tempo_ag = time.time() - tempo_ag_inicio
     comparacao = comparar_ag_com_otimo(melhor.solucao, itens, CAPACIDADE)
 
-    plotar(historico, itens, melhor.solucao, CAPACIDADE, comparacao, tempo_inicio)
+    plotar(historico, itens, melhor.solucao, CAPACIDADE, comparacao, tempo_ag)
