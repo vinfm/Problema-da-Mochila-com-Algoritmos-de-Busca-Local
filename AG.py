@@ -19,6 +19,7 @@ class Estado:
     def __init__(self, solucao):
         self.solucao = solucao
         self.valor_fitness = None
+        self.peso_total = None
 
 def valor_total(sol, itens):
     """Soma os valores dos itens selecionados"""
@@ -28,26 +29,38 @@ def peso_total(sol, itens):
     """Soma os pesos dos itens selecionados"""
     return sum(sol[i] * itens[i]["peso"] for i in range(len(itens)))
 
-def solucao_valida(sol, itens, capacidade):
-    """Verifica se o peso total não excede a capacidade"""
-    return peso_total(sol, itens) <= capacidade
+def solucao_valida(estado_ou_solucao, itens, capacidade):
+    """Verifica se o peso total não excede a capacidade."""
+    if isinstance(estado_ou_solucao, Estado):
+        if estado_ou_solucao.peso_total is None:
+            estado_ou_solucao.peso_total = peso_total(estado_ou_solucao.solucao, itens)
+        return estado_ou_solucao.peso_total <= capacidade
+    return peso_total(estado_ou_solucao, itens) <= capacidade
 
-def conserta_solucao(sol, itens, capacidade):
-    """Conserta uma solução inválida removendo itens aleatórios até ficar válida"""
-    while not solucao_valida(sol, itens, capacidade):
-        i = random.choice([idx for idx, bit in enumerate(sol) if bit == 1])
-        sol[i] = 0
+def conserta_solucao(estado, itens, capacidade):
+    """Conserta um estado inválido removendo itens aleatórios até ficar válido."""
+    if estado.peso_total is None:
+        estado.peso_total = peso_total(estado.solucao, itens)
 
-def calcula_fitness(sol, itens, capacidade):
-    """Calcula o valor total da solução, penalizando soluções inválidas"""
-    if solucao_valida(sol, itens, capacidade):
-        return valor_total(sol, itens)
-    else:
-        return 0
+    while estado.peso_total > capacidade:
+        indices_ativos = [idx for idx, bit in enumerate(estado.solucao) if bit == 1]
+        if not indices_ativos:
+            break
+        i = random.choice(indices_ativos)
+        estado.solucao[i] = 0
+        estado.peso_total -= itens[i]["peso"]
 
-def selecao_roleta(populacao):
+def calcula_fitness(estado, itens, capacidade):
+    """Calcula o fitness do estado, penalizando soluções inválidas."""
+    if solucao_valida(estado, itens, capacidade):
+        if estado.valor_fitness is None:
+            estado.valor_fitness = valor_total(estado.solucao, itens)
+        return estado.valor_fitness
+    return 0
+
+def selecao_roleta(populacao, total_fitness):
     """Seleciona um indivíduo da população usando seleção por roleta"""
-    total_fitness = sum(ind.valor_fitness for ind in populacao)
+    
     if total_fitness <= 0:
         return random.choice(populacao)
     pick = random.uniform(0, total_fitness)
@@ -60,8 +73,9 @@ def selecao_roleta(populacao):
 def selecao(populacao):
     """Seleciona um indivíduo da população usando torneio"""
     nova_populacao = []
-    for _ in range(len(populacao)):
-        nova_populacao.append(selecao_roleta(populacao))
+    total_fitness = sum(ind.valor_fitness for ind in populacao)
+    for _ in range(R):
+        nova_populacao.append(selecao_roleta(populacao, total_fitness))
     return nova_populacao
 
 def crossover(pai1, pai2, pCROSS):
@@ -77,7 +91,7 @@ def crossovers(populacao, pCROSS):
     """Realiza o crossover em toda a população para gerar uma nova população"""
     nova_populacao = []
     i = 0
-    while i < len(populacao) - 1:
+    while i < R - 1:
         filho1_solucao = crossover(populacao[i].solucao, populacao[i + 1].solucao, pCROSS)
         filho2_solucao = crossover(populacao[i + 1].solucao, populacao[i].solucao, pCROSS)
         nova_populacao.append(Estado(filho1_solucao))
@@ -130,9 +144,10 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
     hist_geracao = []
 
     for c in C:
-        if not solucao_valida(c.solucao, itens, capacidade):
-            conserta_solucao(c.solucao, itens, capacidade)
-        c.valor_fitness = calcula_fitness(c.solucao, itens, capacidade)
+        c.peso_total = peso_total(c.solucao, itens)
+        if not solucao_valida(c, itens, capacidade):
+            conserta_solucao(c, itens, capacidade)
+        c.valor_fitness = calcula_fitness(c, itens, capacidade)
 
     geracao = 0
     while (1):
@@ -145,9 +160,10 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
             ind.solucao = mutacao(ind.solucao, pMUT)
 
         for ind in nova_populacao_cruzada:
-            if not solucao_valida(ind.solucao, itens, capacidade):
-                conserta_solucao(ind.solucao, itens, capacidade)
-            ind.valor_fitness = calcula_fitness(ind.solucao, itens, capacidade)
+            ind.peso_total = peso_total(ind.solucao, itens)
+            if not solucao_valida(ind, itens, capacidade):
+                conserta_solucao(ind, itens, capacidade)
+            ind.valor_fitness = calcula_fitness(ind, itens, capacidade)
 
         C = selecao_melhores(C + nova_populacao_cruzada, R)
 
@@ -244,6 +260,20 @@ def plotar(historico, itens, melhor, capacidade, comparacao=None, tempo_ag=None)
     fig = plt.figure(figsize=(15, 10))
     fig.suptitle("Problema da Mochila Binária - Algoritmo Genético",
                  fontsize=14, fontweight="bold", y=0.98)
+    parametros_figura = (
+        f"População = {N}   |   Máx. gerações = {MAX_GERACOES}   |   "
+        f"Itens = {NUM_ITENS}   |   Capacidade = {capacidade}   |   "
+        f"pCROSS = {pCROSS:.2f}   |   pMUT = {pMUT:.2f}"
+    )
+    fig.text(
+        0.5,
+        0.945,
+        parametros_figura,
+        ha="center",
+        fontsize=9,
+        color="#444",
+        bbox={"facecolor": "#f5f5f5", "edgecolor": "#cccccc", "boxstyle": "round,pad=0.35"},
+    )
     gs = gridspec.GridSpec(2, 2, figure=fig, hspace=0.45, wspace=0.35)
 
     AZUL = "#185FA5"
