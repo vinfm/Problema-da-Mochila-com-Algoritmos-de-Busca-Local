@@ -4,15 +4,19 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-MAX_GERACOES = 3000
-NUM_ITENS = 100
-N = 100
+MAX_GERACOES = 600
+NUM_ITENS = 200
+N = NUM_ITENS*2
 R = N
 pCROSS = 0.8
 pMUT = 0.05
 ValorFITNESS_OK = float("inf")  # Pode ser ajustado para um valor específico se desejado
-CAPACIDADE = 500
-MAX_ITENS_COMPARACAO_EXATA = 300
+MAX_ITENS_COMPARACAO_EXATA = 500
+MAX_PESO_ITEM = 100
+MAX_VALOR_ITEM = 100
+MIN_PESO_ITEM = 30
+MIN_VALOR_ITEM = 5
+CAPACIDADE = (MAX_PESO_ITEM - MIN_PESO_ITEM) * NUM_ITENS // 2  # Capacidade média baseada nos itens gerados
 MAX_CUSTO_DP_EXATA = MAX_ITENS_COMPARACAO_EXATA * (CAPACIDADE + 1)
 
 class Estado:
@@ -379,7 +383,7 @@ if __name__ == "__main__":
     # Cada item tem nome, peso >= 0 e valor >= 0
     random.seed()
     itens = [
-        {"nome": f"Item_{i:02d}", "peso": random.randint(3, 25), "valor": random.randint(5, 50)}
+        {"nome": f"Item_{i:02d}", "peso": random.randint(MIN_PESO_ITEM, MAX_PESO_ITEM), "valor": random.randint(MIN_VALOR_ITEM, MAX_VALOR_ITEM)}
         for i in range(NUM_ITENS)
     ]
 
