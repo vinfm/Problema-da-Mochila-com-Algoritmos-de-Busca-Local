@@ -81,7 +81,12 @@ def executar_testes(
     itens = gerar_itens_aleatorios(NUM_ITENS, seed)
     seed_bits = None if seed is None else seed + 1
     vetores_teste = gerar_vetores_bits(num_testes, NUM_ITENS, seed_bits)
-
+    if seed is None:
+        seed = random.randint(0, 1000000)
+    
+    # É fundamental imprimir a seed para caso você precise repetir um teste específico
+    print(f"Semente utilizada: {seed}")
+    
     resultados = []
 
     for idx, vetor_bits in enumerate(vetores_teste, start=1):
