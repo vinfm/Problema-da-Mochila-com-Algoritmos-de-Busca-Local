@@ -315,10 +315,29 @@ def plotar(historico, itens, melhor, capacidade, comparacao=None, tempo_ag=None)
 
     # Rodapé
     val_final = valor_total(melhor, itens)
+    peso_usado = peso_total(melhor, itens)
+    
+    # Encontra a geração onde o melhor valor se estabiliza (deixa de variar)
+    melhor_val_historico = historico['melhor_val']
+    geracao_convergencia = None
+    
+    # Percorre do final para o início para encontrar onde começou a ser constante
+    valor_estavel = melhor_val_historico[-1]
+    for i in range(len(melhor_val_historico) - 1, -1, -1):
+        if melhor_val_historico[i] != valor_estavel:
+            geracao_convergencia = historico['geracao'][i + 1]
+            break
+    
+    # Se nunca variou, começou constante desde o início
+    if geracao_convergencia is None:
+        geracao_convergencia = historico['geracao'][0]
+    
     tempo_decorrido = f"   |   Tempo AG = {tempo_ag:.2f}s" if tempo_ag is not None else ""
+    convergencia_texto = f"   |   Convergência na geração {geracao_convergencia}"
+    
     texto_rodape = (
         f"Melhor valor = {val_final}   |   Peso usado = {peso_usado}/{capacidade}   |   "
-        f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}"
+        f"Itens selecionados = {sum(melhor)}/{len(itens)}{convergencia_texto}{tempo_decorrido}"
     )
 
     if comparacao is not None:
@@ -347,7 +366,7 @@ def gerar_populacao_inicial(N):
 
 if __name__ == "__main__":
     # Cada item tem nome, peso >= 0 e valor >= 0
-    random.seed()
+    random.seed(0)
     itens = [
         {"nome": f"Item_{i:02d}", "peso": random.randint(3, 25), "valor": random.randint(5, 50)}
         for i in range(NUM_ITENS)

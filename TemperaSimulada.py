@@ -3,6 +3,8 @@ import random
 import time
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import itertools
+import statistics
 
 def valor_total(sol, itens):
     """Soma os valores dos itens selecionados"""
@@ -182,7 +184,7 @@ def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
     ax2 = fig.add_subplot(gs[0, 1])
     ax2.plot(fases, historico["temperatura"], color=AMBAR, lw=2.0)
     ax2.fill_between(fases, historico["temperatura"], alpha=0.15, color=AMBAR)
-    ax2.set_title("Resfriamento da temperatura (T·αⁿ)", fontsize=11)
+    ax2.set_title("Resfriamento da temperatura", fontsize=11)
     ax2.set_xlabel("Fase", fontsize=9)
     ax2.set_ylabel("Temperatura T", fontsize=9)
     ax2.set_yscale("log")
@@ -224,11 +226,31 @@ def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
     ax4.tick_params(labelsize=8)
 
     # Rodapé
+    aux = len(historico["val_atual"]) - 1
+    val_atualfinal = historico['val_atual'][aux]
     val_final = valor_total(melhor, itens)
+    
+    # Encontra a iteração onde o melhor valor se estabiliza (deixa de variar)
+    melhor_val_historico = historico['melhor_val']
+    iteracao_convergencia = None
+    
+    # Percorre do final para o início para encontrar onde começou a ser constante
+    valor_estavel = melhor_val_historico[-1]
+    for i in range(len(melhor_val_historico) - 1, -1, -1):
+        if melhor_val_historico[i] != valor_estavel:
+            iteracao_convergencia = historico['iters'][i + 1]
+            break
+    
+    # Se nunca variou, começou constante desde o início
+    if iteracao_convergencia is None:
+        iteracao_convergencia = historico['iters'][0]
+    
     tempo_decorrido = f"   |   Tempo de execução = {time.time() - tempo_inicio:.2f}s" if tempo_inicio else ""
+    convergencia_texto = f"   |   Convergência na iteração {iteracao_convergencia}" if iteracao_convergencia else ""
+    
     fig.text(0.5, 0.01,
-             f"Melhor valor = {val_final}   |   Peso usado = {peso_usado}/{capacidade}   |   "
-             f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}",
+             f"Melhor valor = {val_final} | Valor Atual = {val_atualfinal} |  Peso usado = {peso_usado}/{capacidade}   |"
+             f"Itens selecionados = {sum(melhor)}/{len(itens)}{convergencia_texto}{tempo_decorrido}",
              ha="center", fontsize=10, color="#333")
 
     plt.savefig("resultado_sa_knapsack.png", dpi=150, bbox_inches="tight")
@@ -238,13 +260,13 @@ if __name__ == "__main__":
     tempo_inicio = time.time()
 
     # Cada item tem nome, peso >= 0 e valor >= 0
-    random.seed()
+    random.seed(0)
     itens = [
         {"nome": f"Item_{i:02d}", "peso": random.randint(3, 25), "valor": random.randint(5, 50)}
-        for i in range(20)
+        for i in range(100)
     ]
 
-    capacidade = 100
+    capacidade = 500
 
     # GUIA DE PARÂMETROS
     #
@@ -271,11 +293,11 @@ if __name__ == "__main__":
     melhor_sol, historico = simulated_annealing(
         itens         = itens,
         capacidade    = capacidade,
-        T0            = 1000.0,  # Define exploração inicial
+        T0            = 5000,  # Define exploração inicial
         Tn            = 0.1,     # Temperatura de parada
-        n_fases       = 300,     # Controla duração do resfriamento
-        iter_por_temp = 100,     # Vizinhanças avaliadas por nível de T
+        n_fases       = 500,     # Controla duração do resfriamento
+        iter_por_temp = 200,     # Vizinhanças avaliadas por nível de T
         seed          = None     
     )
-
+    #print(melhor_sol)
     plotar(historico, itens, melhor_sol, capacidade, tempo_inicio)
