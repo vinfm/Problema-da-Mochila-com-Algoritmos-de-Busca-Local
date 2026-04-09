@@ -1,4 +1,5 @@
 import math
+import os
 import random
 import time
 import matplotlib.pyplot as plt
@@ -257,7 +258,16 @@ def comparar_ag_com_otimo(melhor_solucao_ag, itens, capacidade):
     }
 
 # Parte de Plotagem
-def plotar(historico, itens, melhor, capacidade, comparacao=None, tempo_ag=None):
+def plotar(
+    historico,
+    itens,
+    melhor,
+    capacidade,
+    comparacao=None,
+    tempo_ag=None,
+    arquivo_saida="resultado_ag_knapsack.png",
+    exibir=True,
+):
     """Gera gráficos explicativos do comportamento do AG."""
     geracoes = historico["geracao"]
 
@@ -366,8 +376,15 @@ def plotar(historico, itens, melhor, capacidade, comparacao=None, tempo_ag=None)
 
     fig.text(0.5, 0.01, texto_rodape, ha="center", fontsize=10, color="#333")
 
-    plt.savefig("resultado_ag_knapsack.png", dpi=150, bbox_inches="tight")
-    plt.show()
+    diretorio_saida = os.path.dirname(arquivo_saida)
+    if diretorio_saida:
+        os.makedirs(diretorio_saida, exist_ok=True)
+
+    plt.savefig(arquivo_saida, dpi=150, bbox_inches="tight")
+    if exibir:
+        plt.show()
+    else:
+        plt.close(fig)
 
 # Geração da população inicial e execução do AG
 

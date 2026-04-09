@@ -1,4 +1,5 @@
 import math
+import os
 import random
 import time
 import matplotlib.pyplot as plt
@@ -46,7 +47,8 @@ def simulated_annealing(
     Tn,             # Temperatura final 
     n_fases,        # Controla duração do resfriamento
     iter_por_temp,   # Iterações por nível de temperatura
-    seed = None
+    seed = None,
+    solucao_inicial=None,
 ):
     """
     Executa o Simulated Annealing para o Problema da Mochila Binária.
@@ -152,7 +154,15 @@ def simulated_annealing(
     }
     return melhor, historico
 
-def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
+def plotar(
+    historico,
+    itens,
+    melhor,
+    capacidade,
+    tempo_inicio=None,
+    arquivo_saida="resultado_sa_knapsack.png",
+    exibir=True,
+):
     """Gera 4 gráficos explicativos do comportamento da TS."""
     fases = list(range(len(historico["val_atual"])))
 
@@ -231,8 +241,15 @@ def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
              f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}",
              ha="center", fontsize=10, color="#333")
 
-    plt.savefig("resultado_sa_knapsack.png", dpi=150, bbox_inches="tight")
-    plt.show()
+    diretorio_saida = os.path.dirname(arquivo_saida)
+    if diretorio_saida:
+        os.makedirs(diretorio_saida, exist_ok=True)
+
+    plt.savefig(arquivo_saida, dpi=150, bbox_inches="tight")
+    if exibir:
+        plt.show()
+    else:
+        plt.close(fig)
 
 if __name__ == "__main__":
     tempo_inicio = time.time()
