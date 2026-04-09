@@ -25,8 +25,12 @@ from TemperaSimulada import plotar as plotar_ts
 from TemperaSimulada import simulated_annealing
 
 
-def gerar_itens_aleatorios(quantidade, seed):
-    rng = random.Random(seed)
+def gerar_itens_aleatorios(quantidade, seed=None):
+    if seed is None:
+        random.seed()
+        rng = random
+    else:
+        rng = random.Random(seed)
     return [
         {
             "nome": f"Item_{i:02d}",
@@ -75,7 +79,8 @@ def executar_testes(
     print(f"- Capacidade: {CAPACIDADE}")
 
     itens = gerar_itens_aleatorios(NUM_ITENS, seed)
-    vetores_teste = gerar_vetores_bits(num_testes, NUM_ITENS, seed + 1)
+    seed_bits = None if seed is None else seed + 1
+    vetores_teste = gerar_vetores_bits(num_testes, NUM_ITENS, seed_bits)
 
     resultados = []
 
@@ -164,7 +169,7 @@ def parse_args():
         description="Executa AG e TS em lote com vetores de bits de tamanho NUM_ITENS."
     )
     parser.add_argument("--num-testes", type=int, default=5, help="Quantidade de testes.")
-    parser.add_argument("--seed", type=int, default=42, help="Semente base aleatoria.")
+    parser.add_argument("--seed", type=int, default=None, help="Semente base aleatoria (se nao fornecida, usa aleatoria).")
     parser.add_argument(
         "--formato",
         choices=["png", "jpg"],
