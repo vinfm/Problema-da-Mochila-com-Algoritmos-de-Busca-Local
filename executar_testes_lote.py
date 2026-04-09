@@ -2,8 +2,7 @@ import argparse
 import os
 import random
 import time
-
-PASTA_LOTE_PADRAO = os.path.join("Graficos", "TestesConjuntos")
+from datetime import datetime
 
 from AG import (
     AG,
@@ -158,6 +157,9 @@ def executar_testes(
 
 
 def parse_args():
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    pasta_padrao = os.path.join("Graficos", "TestesConjuntos", f"Testes_{timestamp}")
+    
     parser = argparse.ArgumentParser(
         description="Executa AG e TS em lote com vetores de bits de tamanho NUM_ITENS."
     )
@@ -171,12 +173,12 @@ def parse_args():
     )
     parser.add_argument(
         "--pasta-ag",
-        default=os.path.join(PASTA_LOTE_PADRAO, "AG"),
+        default=os.path.join(pasta_padrao, "AG"),
         help="Pasta de saida dos graficos do AG.",
     )
     parser.add_argument(
         "--pasta-ts",
-        default=os.path.join(PASTA_LOTE_PADRAO, "TS"),
+        default=os.path.join(pasta_padrao, "TS"),
         help="Pasta de saida dos graficos da Tempera Simulada.",
     )
     parser.add_argument(
