@@ -229,10 +229,28 @@ def plotar(historico, itens, melhor, capacidade, tempo_inicio=None):
     aux = len(historico["val_atual"]) - 1
     val_atualfinal = historico['val_atual'][aux]
     val_final = valor_total(melhor, itens)
+    
+    # Encontra a iteração onde o melhor valor se estabiliza (deixa de variar)
+    melhor_val_historico = historico['melhor_val']
+    iteracao_convergencia = None
+    
+    # Percorre do final para o início para encontrar onde começou a ser constante
+    valor_estavel = melhor_val_historico[-1]
+    for i in range(len(melhor_val_historico) - 1, -1, -1):
+        if melhor_val_historico[i] != valor_estavel:
+            iteracao_convergencia = historico['iters'][i + 1]
+            break
+    
+    # Se nunca variou, começou constante desde o início
+    if iteracao_convergencia is None:
+        iteracao_convergencia = historico['iters'][0]
+    
     tempo_decorrido = f"   |   Tempo de execução = {time.time() - tempo_inicio:.2f}s" if tempo_inicio else ""
+    convergencia_texto = f"   |   Convergência na iteração {iteracao_convergencia}" if iteracao_convergencia else ""
+    
     fig.text(0.5, 0.01,
              f"Melhor valor = {val_final} | Valor Atual = {val_atualfinal} |  Peso usado = {peso_usado}/{capacidade}   |"
-             f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}",
+             f"Itens selecionados = {sum(melhor)}/{len(itens)}{convergencia_texto}{tempo_decorrido}",
              ha="center", fontsize=10, color="#333")
 
     plt.savefig("resultado_sa_knapsack.png", dpi=150, bbox_inches="tight")
