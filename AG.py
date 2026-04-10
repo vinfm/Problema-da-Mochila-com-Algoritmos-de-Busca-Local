@@ -5,7 +5,7 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-MAX_GERACOES = 600
+MAX_GERACOES = 3000
 NUM_ITENS = 200
 N = NUM_ITENS*2
 R = N
