@@ -356,13 +356,30 @@ def plotar(
     ax4.legend(fontsize=9)
     ax4.grid(True, alpha=0.3)
     ax4.tick_params(labelsize=8)
+    
+    # Encontra a geração onde o melhor valor se estabiliza (deixa de variar)
+    melhor_val_historico = historico['melhor_val']
+    geracao_convergencia = None
+    
+    # Percorre do final para o início para encontrar onde começou a ser constante
+    valor_estavel = melhor_val_historico[-1]
+    for i in range(len(melhor_val_historico) - 1, -1, -1):
+        if melhor_val_historico[i] != valor_estavel:
+            geracao_convergencia = historico['geracao'][i + 1]
+            break
+    
+    # Se nunca variou, começou constante desde o início
+    if geracao_convergencia is None:
+        geracao_convergencia = historico['geracao'][0]
 
+    convergencia_texto = f"   |   Convergência na geração {geracao_convergencia}"
+    
     # Rodapé
     val_final = valor_total(melhor, itens)
     tempo_decorrido = f"   |   Tempo AG = {tempo_ag:.2f}s" if tempo_ag is not None else ""
     texto_rodape = (
         f"Melhor valor = {val_final}   |   Peso usado = {peso_usado}/{capacidade}   |   "
-        f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}"
+        f"Itens selecionados = {sum(melhor)}/{len(itens)}{convergencia_texto}{tempo_decorrido}"
     )
 
     if comparacao is not None:

@@ -4,6 +4,8 @@ import random
 import time
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import itertools
+import statistics
 
 def valor_total(sol, itens):
     """Soma os valores dos itens selecionados"""
@@ -154,15 +156,68 @@ def simulated_annealing(
     }
     return melhor, historico
 
-def plotar(
-    historico,
-    itens,
-    melhor,
-    capacidade,
-    tempo_inicio=None,
-    arquivo_saida="resultado_sa_knapsack.png",
-    exibir=True,
-):
+def maximo_global_mochila(itens, capacidade):
+    """Resolve a mochila 0/1 exatamente via programação dinâmica e reconstrói a solução ótima."""
+    n = len(itens)
+    dp = [[0] * (capacidade + 1) for _ in range(n + 1)]
+
+    for i in range(1, n + 1):
+        peso_i = itens[i - 1]["peso"]
+        valor_i = itens[i - 1]["valor"]
+        for cap in range(capacidade + 1):
+            melhor_sem_item = dp[i - 1][cap]
+            melhor_com_item = -1
+            if peso_i <= cap:
+                melhor_com_item = dp[i - 1][cap - peso_i] + valor_i
+            dp[i][cap] = max(melhor_sem_item, melhor_com_item)
+
+    solucao_otima = [0] * n
+    cap = capacidade
+    for i in range(n, 0, -1):
+        if dp[i][cap] != dp[i - 1][cap]:
+            solucao_otima[i - 1] = 1
+            cap -= itens[i - 1]["peso"]
+
+    valor_otimo = dp[n][capacidade]
+    peso_otimo = peso_total(solucao_otima, itens)
+    return solucao_otima, valor_otimo, peso_otimo
+
+def comparar_sa_com_otimo(melhor_solucao_sa, itens, capacidade):
+    """Compara o resultado da SA com o ótimo global exato da mochila."""
+    melhor_valor_sa = valor_total(melhor_solucao_sa, itens)
+    melhor_peso_sa = peso_total(melhor_solucao_sa, itens)
+
+    custo_dp = len(itens) * (capacidade + 1)
+    MAX_CUSTO_DP_EXATA = 300 * (capacidade + 1)
+
+    if custo_dp > MAX_CUSTO_DP_EXATA:
+        return {
+            "valor_sa": melhor_valor_sa,
+            "peso_sa": melhor_peso_sa,
+            "comparacao_exata": False,
+            "motivo": (
+                f"Comparacao exata pulada: custo DP={custo_dp} "
+                f"> limite {MAX_CUSTO_DP_EXATA} (MAX_ITENS*CAPACIDADE)"
+            ),
+        }
+
+    solucao_otima, valor_otimo, peso_otimo = maximo_global_mochila(itens, capacidade)
+    gap_abs = valor_otimo - melhor_valor_sa
+    gap_pct = (gap_abs / valor_otimo * 100) if valor_otimo > 0 else 0.0
+
+    return {
+        "valor_sa": melhor_valor_sa,
+        "peso_sa": melhor_peso_sa,
+        "comparacao_exata": True,
+        "solucao_otima": solucao_otima,
+        "valor_otimo": valor_otimo,
+        "peso_otimo": peso_otimo,
+        "gap_abs": gap_abs,
+        "gap_pct": gap_pct,
+    }
+
+def plotar(historico, itens, melhor, capacidade, tempo_inicio=None, comparacao=None,arquivo_saida="resultado_sa_knapsack.png",
+    exibir=True,):
     """Gera 4 gráficos explicativos do comportamento da TS."""
     fases = list(range(len(historico["val_atual"])))
 
@@ -192,7 +247,7 @@ def plotar(
     ax2 = fig.add_subplot(gs[0, 1])
     ax2.plot(fases, historico["temperatura"], color=AMBAR, lw=2.0)
     ax2.fill_between(fases, historico["temperatura"], alpha=0.15, color=AMBAR)
-    ax2.set_title("Resfriamento da temperatura (T·αⁿ)", fontsize=11)
+    ax2.set_title("Resfriamento da temperatura", fontsize=11)
     ax2.set_xlabel("Fase", fontsize=9)
     ax2.set_ylabel("Temperatura T", fontsize=9)
     ax2.set_yscale("log")
@@ -234,12 +289,43 @@ def plotar(
     ax4.tick_params(labelsize=8)
 
     # Rodapé
+    aux = len(historico["val_atual"]) - 1
+    val_atualfinal = historico['val_atual'][aux]
     val_final = valor_total(melhor, itens)
+    
+    # Encontra a iteração onde o melhor valor se estabiliza (deixa de variar)
+    melhor_val_historico = historico['melhor_val']
+    iteracao_convergencia = None
+    
+    # Percorre do final para o início para encontrar onde começou a ser constante
+    valor_estavel = melhor_val_historico[-1]
+    for i in range(len(melhor_val_historico) - 1, -1, -1):
+        if melhor_val_historico[i] != valor_estavel:
+            iteracao_convergencia = historico['iters'][i + 1]
+            break
+    
+    # Se nunca variou, começou constante desde o início
+    if iteracao_convergencia is None:
+        iteracao_convergencia = historico['iters'][0]
+    
     tempo_decorrido = f"   |   Tempo de execução = {time.time() - tempo_inicio:.2f}s" if tempo_inicio else ""
-    fig.text(0.5, 0.01,
-             f"Melhor valor = {val_final}   |   Peso usado = {peso_usado}/{capacidade}   |   "
-             f"Itens selecionados = {sum(melhor)}/{len(itens)}{tempo_decorrido}",
-             ha="center", fontsize=10, color="#333")
+    convergencia_texto = f"   |   Convergência na iteração {iteracao_convergencia}" if iteracao_convergencia else ""
+    
+    texto_rodape = (
+        f"Melhor valor = {val_final} | Valor Atual = {val_atualfinal} |  Peso usado = {peso_usado}/{capacidade}   |"
+        f"Itens selecionados = {sum(melhor)}/{len(itens)}{convergencia_texto}{tempo_decorrido}"
+    )
+    
+    if comparacao is not None:
+        if comparacao.get("comparacao_exata"):
+            texto_rodape += (
+                f"\nOtimo global = {comparacao['valor_otimo']} (peso {comparacao['peso_otimo']})"
+                f"   |   Gap SA = {comparacao['gap_abs']} ({comparacao['gap_pct']:.2f}%)"
+            )
+        else:
+            texto_rodape += f"\n{comparacao.get('motivo', 'Comparacao exata nao realizada')}"
+    
+    fig.text(0.5, 0.01, texto_rodape, ha="center", fontsize=10, color="#333")
 
     diretorio_saida = os.path.dirname(arquivo_saida)
     if diretorio_saida:
@@ -255,13 +341,13 @@ if __name__ == "__main__":
     tempo_inicio = time.time()
 
     # Cada item tem nome, peso >= 0 e valor >= 0
-    random.seed()
+    random.seed(0)
     itens = [
         {"nome": f"Item_{i:02d}", "peso": random.randint(3, 25), "valor": random.randint(5, 50)}
-        for i in range(20)
+        for i in range(100)
     ]
 
-    capacidade = 100
+    capacidade = 500
 
     # GUIA DE PARÂMETROS
     #
@@ -288,11 +374,11 @@ if __name__ == "__main__":
     melhor_sol, historico = simulated_annealing(
         itens         = itens,
         capacidade    = capacidade,
-        T0            = 1000.0,  # Define exploração inicial
+        T0            = 5000,  # Define exploração inicial
         Tn            = 0.1,     # Temperatura de parada
-        n_fases       = 300,     # Controla duração do resfriamento
-        iter_por_temp = 100,     # Vizinhanças avaliadas por nível de T
+        n_fases       = 500,     # Controla duração do resfriamento
+        iter_por_temp = 200,     # Vizinhanças avaliadas por nível de T
         seed          = None     
     )
-
-    plotar(historico, itens, melhor_sol, capacidade, tempo_inicio)
+    comparacao = comparar_sa_com_otimo(melhor_sol, itens, capacidade)
+    plotar(historico, itens, melhor_sol, capacidade, tempo_inicio, comparacao)
