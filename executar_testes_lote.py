@@ -126,6 +126,9 @@ def executar_testes(
         )
         tempo_ts = time.time() - inicio_ts
 
+        from TemperaSimulada import comparar_sa_com_otimo
+        comparacao_ts = comparar_sa_com_otimo(melhor_ts, itens, CAPACIDADE)
+
         arquivo_ts = caminho_saida(pasta_ts, "ts", idx, formato)
         plotar_ts(
             historico_ts,
@@ -133,11 +136,10 @@ def executar_testes(
             melhor_ts,
             CAPACIDADE,
             tempo_inicio=inicio_ts,
-            metricas=metricas_ts,
+            metricas=metricas_ts,  
             arquivo_saida=arquivo_ts,
             exibir=mostrar_graficos,
         )
-
         valor_ag = valor_total(melhor_ag.solucao, itens)
         valor_ts = valor_total(melhor_ts, itens)
 
