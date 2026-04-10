@@ -95,7 +95,7 @@ def executar_testes(
         # AG
         populacao_inicial = gerar_populacao_com_vetor(vetor_bits, N, seed + idx)
         inicio_ag = time.time()
-        melhor_ag, historico_ag = AG(populacao_inicial, pCROSS, pMUT, N, R, itens, CAPACIDADE)
+        melhor_ag, historico_ag, metricas_ag = AG(populacao_inicial, pCROSS, pMUT, N, R, itens, CAPACIDADE)
         tempo_ag = time.time() - inicio_ag
         comparacao_ag = comparar_ag_com_otimo(melhor_ag.solucao, itens, CAPACIDADE)
 
@@ -107,13 +107,14 @@ def executar_testes(
             CAPACIDADE,
             comparacao=comparacao_ag,
             tempo_ag=tempo_ag,
+            metricas=metricas_ag,
             arquivo_saida=arquivo_ag,
             exibir=mostrar_graficos,
         )
 
         # TS
         inicio_ts = time.time()
-        melhor_ts, historico_ts = simulated_annealing(
+        melhor_ts, historico_ts, metricas_ts = simulated_annealing(
             itens=itens,
             capacidade=CAPACIDADE,
             T0=1000.0,
@@ -132,6 +133,7 @@ def executar_testes(
             melhor_ts,
             CAPACIDADE,
             tempo_inicio=inicio_ts,
+            metricas=metricas_ts,
             arquivo_saida=arquivo_ts,
             exibir=mostrar_graficos,
         )
@@ -144,16 +146,20 @@ def executar_testes(
                 "teste": idx,
                 "valor_ag": valor_ag,
                 "tempo_ag": tempo_ag,
+                "avaliacoes_ag": metricas_ag["avaliacoes_objetivo"],
                 "valor_ts": valor_ts,
                 "tempo_ts": tempo_ts,
+                "avaliacoes_ts": metricas_ts["avaliacoes_objetivo"],
                 "arquivo_ag": arquivo_ag,
                 "arquivo_ts": arquivo_ts,
             }
         )
 
         print(
-            f"[TESTE {idx:02d}] AG valor={valor_ag} ({tempo_ag:.2f}s) | "
-            f"TS valor={valor_ts} ({tempo_ts:.2f}s)"
+            f"[TESTE {idx:02d}] AG valor={valor_ag} ({tempo_ag:.2f}s, "
+            f"avaliações={metricas_ag['avaliacoes_objetivo']}) | "
+            f"TS valor={valor_ts} ({tempo_ts:.2f}s, "
+            f"avaliações={metricas_ts['avaliacoes_objetivo']})"
         )
         print(f"[TESTE {idx:02d}] Graficos salvos em: {arquivo_ag} e {arquivo_ts}")
 
@@ -161,8 +167,8 @@ def executar_testes(
     for r in resultados:
         print(
             f"- Teste {r['teste']:02d}: "
-            f"AG={r['valor_ag']} ({r['tempo_ag']:.2f}s), "
-            f"TS={r['valor_ts']} ({r['tempo_ts']:.2f}s)"
+            f"AG={r['valor_ag']} ({r['tempo_ag']:.2f}s, avaliações={r['avaliacoes_ag']}), "
+            f"TS={r['valor_ts']} ({r['tempo_ts']:.2f}s, avaliações={r['avaliacoes_ts']})"
         )
 
 

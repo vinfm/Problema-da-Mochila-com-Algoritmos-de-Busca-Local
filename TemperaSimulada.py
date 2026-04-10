@@ -82,7 +82,8 @@ def simulated_annealing(
 
     # Mochila vazia
     atual = [0] * n
-    val_atual = 0
+    val_atual = valor_total(atual, itens)
+    avaliacoes_objetivo = 1
 
     melhor = atual[:]
     melhor_val = 0
@@ -109,6 +110,7 @@ def simulated_annealing(
         for _ in range(iter_por_temp):
             vizinho = gerar_vizinho(atual, itens, capacidade)
             val_vizinho = valor_total(vizinho, itens)
+            avaliacoes_objetivo += 1
             delta = val_vizinho - val_atual
 
             if delta >= 0:
@@ -154,7 +156,12 @@ def simulated_annealing(
         "taxa_aceite": hist_taxa_aceite,
         "iters":       hist_iters,
     }
-    return melhor, historico
+    metricas = {
+        "avaliacoes_objetivo": avaliacoes_objetivo,
+        "iteracoes_executadas": iter_global,
+        "fases_executadas": fase,
+    }
+    return melhor, historico, metricas
 
 def maximo_global_mochila(itens, capacidade):
     """Resolve a mochila 0/1 exatamente via programação dinâmica e reconstrói a solução ótima."""
@@ -216,8 +223,17 @@ def comparar_sa_com_otimo(melhor_solucao_sa, itens, capacidade):
         "gap_pct": gap_pct,
     }
 
-def plotar(historico, itens, melhor, capacidade, tempo_inicio=None, comparacao=None,arquivo_saida="resultado_sa_knapsack.png",
-    exibir=True,):
+def plotar(
+    historico,
+    itens,
+    melhor,
+    capacidade,
+    tempo_inicio=None,
+    comparacao=None,
+    metricas=None,
+    arquivo_saida="resultado_sa_knapsack.png",
+    exibir=True,
+):
     """Gera 4 gráficos explicativos do comportamento da TS."""
     fases = list(range(len(historico["val_atual"])))
 
@@ -315,6 +331,9 @@ def plotar(historico, itens, melhor, capacidade, tempo_inicio=None, comparacao=N
         f"Melhor valor = {val_final} | Valor Atual = {val_atualfinal} |  Peso usado = {peso_usado}/{capacidade}   |"
         f"Itens selecionados = {sum(melhor)}/{len(itens)}{convergencia_texto}{tempo_decorrido}"
     )
+
+    if metricas is not None:
+        texto_rodape += f"   |   Avaliações objetivo = {metricas.get('avaliacoes_objetivo', 0)}"
     
     if comparacao is not None:
         if comparacao.get("comparacao_exata"):
@@ -371,7 +390,7 @@ if __name__ == "__main__":
     #      Mais iterações -> melhor amostragem em cada T, mas mais lento
     #      Valores típicos: 50 a 200 para instâncias de 10-50 itens
 
-    melhor_sol, historico = simulated_annealing(
+    melhor_sol, historico, metricas = simulated_annealing(
         itens         = itens,
         capacidade    = capacidade,
         T0            = 5000,  # Define exploração inicial
@@ -381,4 +400,4 @@ if __name__ == "__main__":
         seed          = None     
     )
     comparacao = comparar_sa_com_otimo(melhor_sol, itens, capacidade)
-    plotar(historico, itens, melhor_sol, capacidade, tempo_inicio, comparacao)
+    plotar(historico, itens, melhor_sol, capacidade, tempo_inicio, comparacao, metricas)

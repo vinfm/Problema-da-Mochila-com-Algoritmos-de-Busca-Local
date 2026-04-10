@@ -147,12 +147,14 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
     hist_pior_val = []
     hist_distancia_media = []
     hist_geracao = []
+    avaliacoes_objetivo = 0
 
     for c in C:
         c.peso_total = peso_total(c.solucao, itens)
         if not solucao_valida(c, itens, capacidade):
             conserta_solucao(c, itens, capacidade)
         c.valor_fitness = calcula_fitness(c, itens, capacidade)
+        avaliacoes_objetivo += 1
 
     geracao = 0
     while (1):
@@ -169,6 +171,7 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
             if not solucao_valida(ind, itens, capacidade):
                 conserta_solucao(ind, itens, capacidade)
             ind.valor_fitness = calcula_fitness(ind, itens, capacidade)
+            avaliacoes_objetivo += 1
 
         C = selecao_melhores(C + nova_populacao_cruzada, R)
 
@@ -194,7 +197,11 @@ def AG(C, pCROSS, pMUT, N, R, itens, capacidade):
         "pior_val": hist_pior_val,
         "distancia_media": hist_distancia_media,
     }
-    return sorted_populacao[0], historico
+    metricas = {
+        "avaliacoes_objetivo": avaliacoes_objetivo,
+        "geracoes_executadas": geracao,
+    }
+    return sorted_populacao[0], historico, metricas
 
 
 ##### Funções para comparação com o ótimo global exato via programação dinâmica
@@ -265,6 +272,7 @@ def plotar(
     capacidade,
     comparacao=None,
     tempo_ag=None,
+    metricas=None,
     arquivo_saida="resultado_ag_knapsack.png",
     exibir=True,
 ):
@@ -382,6 +390,9 @@ def plotar(
         f"Itens selecionados = {sum(melhor)}/{len(itens)}{convergencia_texto}{tempo_decorrido}"
     )
 
+    if metricas is not None:
+        texto_rodape += f"   |   Avaliações objetivo = {metricas.get('avaliacoes_objetivo', 0)}"
+
     if comparacao is not None:
         if comparacao.get("comparacao_exata"):
             texto_rodape += (
@@ -423,8 +434,8 @@ if __name__ == "__main__":
 
     C = gerar_populacao_inicial(N)
     tempo_ag_inicio = time.time()
-    melhor, historico = AG(C, pCROSS, pMUT, N, R, itens, CAPACIDADE)
+    melhor, historico, metricas = AG(C, pCROSS, pMUT, N, R, itens, CAPACIDADE)
     tempo_ag = time.time() - tempo_ag_inicio
     comparacao = comparar_ag_com_otimo(melhor.solucao, itens, CAPACIDADE)
 
-    plotar(historico, itens, melhor.solucao, CAPACIDADE, comparacao, tempo_ag)
+    plotar(historico, itens, melhor.solucao, CAPACIDADE, comparacao, tempo_ag, metricas)
